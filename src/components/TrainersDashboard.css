@@ -1,0 +1,132 @@
+/* Trainers Dashboard Styling */
+body {
+    background: linear-gradient(to left, var(--first-color), var(--second-color));
+    overflow-x: hidden;
+}
+
+.dashboard-container {
+    text-align: center;
+    padding: 50px 20px;
+}
+
+.section-card {
+    background: var(--third-color);
+    color: var(--first-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.section-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.section-card h2 {
+    color: var(--second-color);
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.section-card p {
+    font-size: 1rem;
+    color: var(--first-color);
+    margin-bottom: 15px;
+}
+
+.section-card button {
+    background-color: var(--second-color);
+    color: var(--third-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.section-card button:hover {
+    background-color: var(--fourth-color);
+}
+/* Modal Styling */
+.offcanvas {
+    background-color: white; /* White background for the modal */
+    color: #333; /* Dark text color for readability */
+    padding: 20px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+  
+  .offcanvas-header {
+    background-color: var(--first-color);
+    padding: 10px 20px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .offcanvas-body {
+    padding: 20px;
+    background-color: var(--third-color);
+  }
+  
+  .offcanvas-title {
+    font-size: 1.5rem;
+    color: #fff; /* White text for the title */
+  }
+  
+  .btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .btn-close:hover {
+    color: #f0ad4e; /* Yellow/Orange color on hover */
+  }
+  
+  .table {
+    color: #333; /* Dark text color */
+    background-color: #f8f9fa; /* Light background for the table */
+  }
+  
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #fff; /* White rows for odd-numbered rows */
+  }
+  
+  .table-striped tbody tr:nth-of-type(even) {
+    background-color: #f8f9fa; /* Light grey for even rows */
+  }
+  
+  .table th, .table td {
+    text-align: center;
+    padding: 12px 15px;
+  }
+  
+  .table th {
+    background-color: var(--first-color);
+    color: var(--third-color);
+  }
+  
+  /* Button styles */
+  .btn-primary {
+    background-color: var(--first-color);
+    border-color: var(--first-color);
+    font-size: 1.1rem;
+    padding: 10px 20px;
+    border-radius: 5px;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--second-color);
+    border-color: var(--second-color);
+  }
+  
+  .card-title {
+    color: var(--first-color);
+  }
+  
+  

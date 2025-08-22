@@ -1,0 +1,14 @@
+body{
+    overflow-x: hidden;
+}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, content=maxium-scale=1.0, user-scalable=no">
+
+-----CSS link-----
+<link rel="stylesheet" href="aos/dist/aos.css">
+
+-----JS link-----
+<script src="aos/dist/aos.js"></script>
+
+<script>
+  AOS.init();
+</script>
