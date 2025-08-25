@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import Chatbot from './Chatbot';
 import './MembersDashboard.css';
 
 const MemberDashboard = () => {
@@ -13,6 +14,7 @@ const MemberDashboard = () => {
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [userName, setUserName] = useState('');
   const [payments, setPayments] = useState([]);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Données utilisateur
   const [userProfile, setUserProfile] = useState({
@@ -1146,6 +1148,48 @@ const MemberDashboard = () => {
 
       {/* Footer */}
       <Footer />
+
+      {/* Floating Chatbot Button */}
+      {!showChatbot && (
+        <button
+          onClick={() => setShowChatbot(true)}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            width: '60px',
+            height: '60px',
+            backgroundColor: '#007BFF',
+            border: 'none',
+            borderRadius: '50%',
+            color: '#FFFFFF',
+            fontSize: '24px',
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(0, 123, 255, 0.4)',
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.transform = 'scale(1.1)';
+            e.target.style.backgroundColor = '#0056B3';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.backgroundColor = '#007BFF';
+          }}
+          title="Chat with Gym Assistant"
+        >
+          💬
+        </button>
+      )}
+
+      {/* Chatbot Component */}
+      {showChatbot && (
+        <Chatbot onClose={() => setShowChatbot(false)} />
+      )}
     </div>
   );
 };

@@ -1331,20 +1331,58 @@ const AdminsDashboard = () => {
                 }}>
                   <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#007BFF' }}>{c.email}</div>
                   <div style={{ marginLeft: 0, color: '#4A4A4A', marginBottom: '10px' }}>{c.message}</div>
-                  <button 
-                    className="btn btn-sm mt-2" 
-                    onClick={() => { setRespondingId(c.id); setFaqForm({ question: c.message, answer: '' }); }}
-                    style={{
-                      backgroundColor: '#38B6FF',
-                      color: '#F8F9FA',
-                      border: 'none',
-                      borderRadius: '15px',
-                      padding: '6px 15px',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Add Response
-                  </button>
+                  <div className="d-flex gap-2">
+                    <button 
+                      className="btn btn-sm mt-2" 
+                      onClick={() => { setRespondingId(c.id); setFaqForm({ question: c.message, answer: '' }); }}
+                      style={{
+                        backgroundColor: '#38B6FF',
+                        color: '#F8F9FA',
+                        border: 'none',
+                        borderRadius: '15px',
+                        padding: '6px 15px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Add Response
+                    </button>
+                    <button 
+                      className="btn btn-sm mt-2" 
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete this contact message?')) {
+                          try {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch(`http://localhost:8000/api/contacter/${c.id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                              },
+                            });
+                            if (res.ok) {
+                              // Remove the deleted contact from the local state
+                              setContacters(prevContacters => prevContacters.filter(contact => contact.id !== c.id));
+                            } else {
+                              alert('Failed to delete contact message.');
+                            }
+                          } catch (error) {
+                            console.error('Error deleting contact:', error);
+                            alert('Error deleting contact message.');
+                          }
+                        }
+                      }}
+                      style={{
+                        backgroundColor: '#DC3545',
+                        color: '#F8F9FA',
+                        border: 'none',
+                        borderRadius: '15px',
+                        padding: '6px 15px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                   {respondingId === c.id && (
                     <form className="mt-2 p-3 border rounded" style={{ 
                       maxWidth: 400, 

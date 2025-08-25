@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Navbar from './Navbar'; // Ensure Navbar is correctly imported
 import Footer from './Footer'; // Ensure Footer is correctly imported
+import Chatbot from './Chatbot';
 import './TrainersDashboard.css'; // Ensure correct path to your CSS
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -55,6 +56,7 @@ const TrainersDashboard = () => {
   const [addClassForm, setAddClassForm] = useState({ name: '', class_time: '' });
   const [addClassError, setAddClassError] = useState('');
   const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Function to toggle the schedule modal visibility
   const toggleModal = () => {
@@ -939,6 +941,48 @@ const TrainersDashboard = () => {
 
       {/* Footer Section */}
       <Footer />
+
+      {/* Floating Chatbot Button */}
+      {!showChatbot && (
+        <button
+          onClick={() => setShowChatbot(true)}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            width: '60px',
+            height: '60px',
+            backgroundColor: '#007BFF',
+            border: 'none',
+            borderRadius: '50%',
+            color: '#FFFFFF',
+            fontSize: '24px',
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(0, 123, 255, 0.4)',
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.transform = 'scale(1.1)';
+            e.target.style.backgroundColor = '#0056B3';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.backgroundColor = '#007BFF';
+          }}
+          title="Chat with Gym Assistant"
+        >
+          💬
+        </button>
+      )}
+
+      {/* Chatbot Component */}
+      {showChatbot && (
+        <Chatbot onClose={() => setShowChatbot(false)} />
+      )}
     </div>
   );
 };
