@@ -18,7 +18,7 @@ class ClasseController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string',
-            'session_time' => 'required|date_format:H:i:s',
+            'class_time' => 'required|date_format:H:i:s',
             'class_date' => 'required|date',
             'trainer_id' => 'nullable|exists:users,id',
             'participants_count' => 'nullable|integer|min:0',
@@ -42,6 +42,13 @@ class ClasseController extends Controller
     public function destroy($id)
     {
         return Classe::destroy($id);
+    }
+
+    public function incrementParticipants($id)
+    {
+        $classe = Classe::findOrFail($id);
+        $classe->increment('participants_count');
+        return $classe->fresh();
     }
 }
 

@@ -14,7 +14,7 @@ use App\Http\Controllers\PaymentController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'check.subscription.expiry'])->group(function () {
     Route::get('/me',     [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
@@ -23,6 +23,7 @@ Route::middleware('auth:api')->group(function () {
 Route::apiResource('users', UserController::class);
 
 Route::apiResource('classes', ClasseController::class);
+Route::post('/classes/{id}/increment-participants', [ClasseController::class, 'incrementParticipants']);
 
 Route::apiResource('testimonials', TestimonialController::class);
 

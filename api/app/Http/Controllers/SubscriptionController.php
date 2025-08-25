@@ -19,7 +19,7 @@ class SubscriptionController extends Controller
             'plan_id' => 'required|exists:plans,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'in:active,pending,cancelled',
+            'status' => 'in:active,expired,cancelled',
         ]);
 
         return Subscription::create($validated);
@@ -33,8 +33,17 @@ class SubscriptionController extends Controller
     public function update(Request $request, $id)
     {
         $subscription = Subscription::findOrFail($id);
-        $subscription->update($request->all());
-        return $subscription;
+        
+        $validated = $request->validate([
+            'user_id' => 'sometimes|exists:users,id',
+            'plan_id' => 'sometimes|exists:plans,id',
+            'start_date' => 'sometimes|date',
+            'end_date' => 'sometimes|date',
+            'status' => 'sometimes|in:active,expired,cancelled',
+        ]);
+        
+        $subscription->update($validated);
+        return $subscription->fresh(['user', 'plan']);
     }
 
     public function destroy($id)

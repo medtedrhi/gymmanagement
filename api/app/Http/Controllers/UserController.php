@@ -12,7 +12,38 @@ class UserController extends Controller
     // Get all users
     public function index()
     {
-        return User::all();
+        // Update expired subscriptions first
+        \App\Models\Subscription::updateExpiredSubscriptions();
+        
+        $users = User::with(['subscriptions' => function($query) {
+            $query->latest()->limit(1);
+        }])->get();
+
+        // Add subscription status to each user
+        $users->each(function($user) {
+            $latestSubscription = $user->subscriptions->first();
+            if ($latestSubscription) {
+                // Check if subscription is expired
+                $currentDate = now()->toDateString();
+                if ($latestSubscription->status === 'active' && $latestSubscription->end_date < $currentDate) {
+                    // Update to expired status
+                    $latestSubscription->update(['status' => 'expired']);
+                    $user->subscription_status = 'expired';
+                } else {
+                    $user->subscription_status = $latestSubscription->status;
+                }
+                
+                // Add subscription end date for display
+                $user->subscription_end_date = $latestSubscription->end_date;
+            } else {
+                $user->subscription_status = null;
+                $user->subscription_end_date = null;
+            }
+            // Remove the subscriptions relation from the response to keep it clean
+            unset($user->subscriptions);
+        });
+
+        return $users;
     }
 
     // Create a new user (Admin only)

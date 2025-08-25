@@ -20,6 +20,10 @@ class Classe extends Model
         'participants_count',
     ];
 
+    protected $attributes = [
+        'participants_count' => 0,
+    ];
+
     public function trainer()
     {
         return $this->belongsTo(User::class, 'trainer_id');

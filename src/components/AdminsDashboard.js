@@ -208,17 +208,85 @@ const AdminsDashboard = () => {
   const handleEditClassCancel = () => setEditClass(null);
 
   const [showAddClassModal, setShowAddClassModal] = useState(false);
-  const [addClassForm, setAddClassForm] = useState({ name: '', classe_time: '', class_date: '', trainer_id: '', participants_count: 0 });
+  const [addClassForm, setAddClassForm] = useState({ name: '', class_time: '', class_date: '', trainer_id: '', participants_count: 0 });
 
   const handleAddClassFormChange = (e) => {
     const { name, value } = e.target;
-    // For classe_time, ensure value is in HH:mm:ss
-    if (name === 'classe_time') {
+    // For class_time, ensure value is in HH:mm:ss
+    if (name === 'class_time') {
       let formatted = value;
       if (value.length === 5) formatted = value + ':00';
       setAddClassForm((prev) => ({ ...prev, [name]: formatted }));
     } else {
       setAddClassForm((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleAddPaymentFormChange = (e) => {
+    const { name, value } = e.target;
+    setAddPaymentForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddPaymentSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/payments', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(addPaymentForm),
+      });
+      if (response.ok) {
+        setShowAddPaymentModal(false);
+        setAddPaymentForm({ user_id: '', plan_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'Pending' });
+        setSuccessMessage('Payment added successfully!');
+        // Refresh payments
+        const paymentsRes = await fetch('http://localhost:8000/api/payments', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (paymentsRes.ok) {
+          const data = await paymentsRes.json();
+          const transformedPayments = await Promise.all(data.map(async payment => {
+            let planName = 'Unknown Plan';
+            try {
+              const planResponse = await fetch(`http://localhost:8000/api/plans/${payment.plan_id}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+              if (planResponse.ok) {
+                const planData = await planResponse.json();
+                planName = planData.name || 'Unknown Plan';
+              }
+            } catch (error) {
+              console.error('Error fetching plan:', error);
+            }
+            return {
+              ...payment,
+              user_name: payment.user ? payment.user.name : 'Unknown User',
+              plan_name: planName,
+              amount: payment.amount || 0,
+              status: payment.status || 'Pending',
+              created_at: payment.created_at || new Date().toISOString()
+            }
+          }));
+          setPayments(transformedPayments);
+        }
+        setTimeout(() => setSuccessMessage(''), 2000);
+      } else {
+        setSuccessMessage('Failed to add payment.');
+        setTimeout(() => setSuccessMessage(''), 2000);
+      }
+    } catch (error) {
+      setSuccessMessage('Error adding payment.');
+      setTimeout(() => setSuccessMessage(''), 2000);
     }
   };
   const handleAddClassSubmit = async (e) => {
@@ -235,7 +303,7 @@ const AdminsDashboard = () => {
       });
       if (response.ok) {
         setShowAddClassModal(false);
-        setAddClassForm({ name: '', classe_time: '', class_date: '', trainer_id: '', participants_count: 0 });
+        setAddClassForm({ name: '', class_time: '', class_date: '', trainer_id: '', participants_count: 0 });
         setSuccessMessage('Class added successfully!');
         // Refresh classes
         const classesRes = await fetch('http://localhost:8000/api/classes', {
@@ -266,6 +334,9 @@ const AdminsDashboard = () => {
   const [faqSuccess, setFaqSuccess] = useState('');
   const [payments, setPayments] = useState([]);
   const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [addPaymentForm, setAddPaymentForm] = useState({ user_id: '', plan_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'Pending' });
+  const [plans, setPlans] = useState([]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -394,6 +465,29 @@ const AdminsDashboard = () => {
   }, []);
 
   useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/api/plans', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPlans(data);
+        } else {
+          setPlans([]);
+        }
+      } catch (error) {
+        setPlans([]);
+      }
+    };
+    fetchPlans();
+  }, []);
+
+  useEffect(() => {
     if (showReportsModal) {
       const fetchContacters = async () => {
         try {
@@ -477,10 +571,27 @@ const AdminsDashboard = () => {
         <div className="row">
           {/* Manage Users Section */}
           <div className="col-md-3">
-            <div className="card section-card" data-aos="fade-up" data-aos-duration="1000">
-              <h2 className="card-title">Manage Users</h2>
-              <p>View, edit, or delete users.</p>
-              <button className="btn btn-primary" onClick={toggleUsersModal}>
+            <div className="card section-card" data-aos="fade-up" data-aos-duration="1000" style={{
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #E3F2FD 100%)',
+              border: '2px solid #38B6FF',
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(56, 182, 255, 0.15)'
+            }}>
+              <h2 className="card-title" style={{ color: '#007BFF', fontWeight: 'bold' }}>Manage Users</h2>
+              <p style={{ color: '#4A4A4A' }}>View, edit, or delete users.</p>
+              <button 
+                className="btn"
+                onClick={toggleUsersModal}
+                style={{
+                  background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                  color: '#F8F9FA',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '12px 24px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 5px 15px rgba(46, 204, 113, 0.3)'
+                }}
+              >
                 Users
               </button>
             </div>
@@ -488,10 +599,27 @@ const AdminsDashboard = () => {
 
           {/* Manage Classes Section */}
           <div className="col-md-3">
-            <div className="card section-card" data-aos="fade-up" data-aos-duration="1500">
-              <h2 className="card-title">Manage Classes</h2>
-              <p>View, edit, or delete classes.</p>
-              <button className="btn btn-primary" onClick={toggleClassesModal}>
+            <div className="card section-card" data-aos="fade-up" data-aos-duration="1500" style={{
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #E8F5E8 100%)',
+              border: '2px solid #2ECC71',
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(46, 204, 113, 0.15)'
+            }}>
+              <h2 className="card-title" style={{ color: '#007BFF', fontWeight: 'bold' }}>Manage Classes</h2>
+              <p style={{ color: '#4A4A4A' }}>View, edit, or delete classes.</p>
+              <button 
+                className="btn"
+                onClick={toggleClassesModal}
+                style={{
+                  background: 'linear-gradient(135deg, #38B6FF 0%, #1E88E5 100%)',
+                  color: '#F8F9FA',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '12px 24px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 5px 15px rgba(56, 182, 255, 0.3)'
+                }}
+              >
                 Classes
               </button>
             </div>
@@ -499,10 +627,27 @@ const AdminsDashboard = () => {
 
           {/* Manage Payments Section */}
           <div className="col-md-3">
-            <div className="card section-card" data-aos="fade-up" data-aos-duration="2000">
-              <h2 className="card-title">Manage Payments</h2>
-              <p>View and manage payments.</p>
-              <button className="btn btn-primary" onClick={togglePaymentsModal}>
+            <div className="card section-card" data-aos="fade-up" data-aos-duration="2000" style={{
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #FFF3E0 100%)',
+              border: '2px solid #38B6FF',
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(56, 182, 255, 0.15)'
+            }}>
+              <h2 className="card-title" style={{ color: '#007BFF', fontWeight: 'bold' }}>Manage Payments</h2>
+              <p style={{ color: '#4A4A4A' }}>View and manage payments.</p>
+              <button 
+                className="btn"
+                onClick={togglePaymentsModal}
+                style={{
+                  background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                  color: '#F8F9FA',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '12px 24px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 5px 15px rgba(46, 204, 113, 0.3)'
+                }}
+              >
                 Payments
               </button>
             </div>
@@ -510,10 +655,27 @@ const AdminsDashboard = () => {
 
           {/* Reports Section */}
           <div className="col-md-3">
-            <div className="card section-card" data-aos="fade-up" data-aos-duration="2500">
-              <h2 className="card-title">Reports</h2>
-              <p>Generate and view reports.</p>
-              <button className="btn btn-primary" onClick={toggleReportsModal}>
+            <div className="card section-card" data-aos="fade-up" data-aos-duration="2500" style={{
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #E8F5E8 100%)',
+              border: '2px solid #2ECC71',
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(46, 204, 113, 0.15)'
+            }}>
+              <h2 className="card-title" style={{ color: '#007BFF', fontWeight: 'bold' }}>Reports</h2>
+              <p style={{ color: '#4A4A4A' }}>Generate and view reports.</p>
+              <button 
+                className="btn"
+                onClick={toggleReportsModal}
+                style={{
+                  background: 'linear-gradient(135deg, #38B6FF 0%, #1E88E5 100%)',
+                  color: '#F8F9FA',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '12px 24px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 5px 15px rgba(56, 182, 255, 0.3)'
+                }}
+              >
                 Reports
               </button>
             </div>
@@ -523,33 +685,110 @@ const AdminsDashboard = () => {
 
       {/* Manage Users Modal */}
       {showUsersModal && (
-        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="usersModal" aria-labelledby="offcanvasLabel" ref={offcanvasRef}>
-          <div className="offcanvas-header">
-            <h5 className="offcanvas-title">Manage Users</h5>
-            <button type="button" className="btn-close" aria-label="Close" onClick={toggleUsersModal}></button>
+        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="usersModal" aria-labelledby="offcanvasLabel" ref={offcanvasRef} style={{ backgroundColor: '#F8F9FA' }}>
+          <div className="offcanvas-header" style={{ backgroundColor: '#007BFF', borderBottom: '2px solid #38B6FF' }}>
+            <h5 className="offcanvas-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Manage Users</h5>
+            <button type="button" className="btn-close" aria-label="Close" onClick={toggleUsersModal} style={{ filter: 'invert(1)' }}></button>
           </div>
-          <div className="offcanvas-body">
-            <button className="btn btn-success mb-3" onClick={() => setShowAddUserModal(true)}>Add User</button>
+          <div className="offcanvas-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
+            <button 
+              className="btn mb-3" 
+              onClick={() => setShowAddUserModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                color: '#F8F9FA',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '10px 20px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(46, 204, 113, 0.3)'
+              }}
+            >
+              Add User
+            </button>
             <input
               type="text"
               className="form-control mb-3"
               placeholder="Search by name or email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                border: '2px solid #38B6FF',
+                borderRadius: '10px',
+                backgroundColor: '#FFFFFF',
+                color: '#343A40',
+                padding: '12px 15px'
+              }}
             />
             <ul className="list-group">
-              {successMessage && <div className="alert alert-success mb-2">{successMessage}</div>}
+              {successMessage && <div className="alert alert-success mb-2" style={{ backgroundColor: '#E8F5E8', border: '1px solid #2ECC71', color: '#2ECC71' }}>{successMessage}</div>}
               {users.filter(user =>
                 user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 user.email.toLowerCase().includes(searchQuery.toLowerCase())
               ).map((user) => (
-                <li key={user.id} className="list-group-item d-flex justify-content-between align-items-center">
-                  {user.name} ({user.email})
-                  <div>
-                    <button className="btn btn-sm btn-warning mx-1" onClick={() => handleEditClick(user)}>Edit</button>
-                    <button className="btn btn-sm btn-danger mx-1" onClick={() => handleDeleteUser(user.id)}>
-                      Delete
-                    </button>
+                <li key={user.id} className="list-group-item" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: '8px', marginBottom: '8px' }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div style={{ color: '#4A4A4A' }}>
+                      <div><strong>{user.name}</strong> ({user.email})</div>
+                      <small className="text-muted">Role: {user.role}</small>
+                      {user.role === 'member' && (
+                        <div>
+                          <span className={`badge ${
+                            user.subscription_status === 'active' ? 'bg-success' : 
+                            user.subscription_status === 'expired' ? 'bg-danger' : 
+                            user.subscription_status === 'cancelled' ? 'bg-warning' : 'bg-secondary'
+                          } ms-2`} style={{
+                            backgroundColor: 
+                              user.subscription_status === 'active' ? '#2ECC71' : 
+                              user.subscription_status === 'expired' ? '#DC3545' : 
+                              user.subscription_status === 'cancelled' ? '#FFC107' : '#6C757D',
+                            color: '#F8F9FA',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.8em'
+                          }}>
+                            {user.subscription_status === 'expired' ? '⚠️ Expired' : 
+                             user.subscription_status === 'active' ? '✅ Active' :
+                             user.subscription_status === 'cancelled' ? '❌ Cancelled' :
+                             '❓ No Subscription'}
+                          </span>
+                          {user.subscription_end_date && (
+                            <div style={{ fontSize: '0.75em', color: '#6C757D', marginTop: '2px' }}>
+                              {user.subscription_status === 'expired' ? 'Expired on: ' : 'Expires: '}
+                              {new Date(user.subscription_end_date).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <button 
+                        className="btn btn-sm mx-1" 
+                        onClick={() => handleEditClick(user)}
+                        style={{
+                          backgroundColor: '#FFC107',
+                          color: '#343A40',
+                          border: 'none',
+                          borderRadius: '15px',
+                          padding: '5px 12px'
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        className="btn btn-sm mx-1" 
+                        onClick={() => handleDeleteUser(user.id)}
+                        style={{
+                          backgroundColor: '#FF6B6B',
+                          color: '#F8F9FA',
+                          border: 'none',
+                          borderRadius: '15px',
+                          padding: '5px 12px'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -557,33 +796,100 @@ const AdminsDashboard = () => {
             {editUser && (
               <div className="modal show d-block" tabIndex="-1" ref={modalRef}>
                 <div className="modal-dialog">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h5 className="modal-title">Edit User</h5>
-                      <button type="button" className="btn-close" aria-label="Close" onClick={handleEditCancel}></button>
+                  <div className="modal-content" style={{ backgroundColor: '#F8F9FA', border: '2px solid #38B6FF', borderRadius: '15px' }}>
+                    <div className="modal-header" style={{ backgroundColor: '#007BFF', borderBottom: '2px solid #38B6FF' }}>
+                      <h5 className="modal-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Edit User</h5>
+                      <button type="button" className="btn-close" aria-label="Close" onClick={handleEditCancel} style={{ filter: 'invert(1)' }}></button>
                     </div>
                     <form onSubmit={handleEditSubmit}>
-                      <div className="modal-body">
+                      <div className="modal-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
                         <div className="mb-3">
-                          <label className="form-label">Name</label>
-                          <input type="text" className="form-control" name="name" value={editForm.name} onChange={handleEditFormChange} required />
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Name</label>
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            name="name" 
+                            value={editForm.name} 
+                            onChange={handleEditFormChange} 
+                            required 
+                            style={{
+                              border: '2px solid #38B6FF',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">Email</label>
-                          <input type="email" className="form-control" name="email" value={editForm.email} onChange={handleEditFormChange} required />
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Email</label>
+                          <input 
+                            type="email" 
+                            className="form-control" 
+                            name="email" 
+                            value={editForm.email} 
+                            onChange={handleEditFormChange} 
+                            required 
+                            style={{
+                              border: '2px solid #38B6FF',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">Role</label>
-                          <select className="form-control" name="role" value={editForm.role} onChange={handleEditFormChange} required>
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Role</label>
+                          <select 
+                            className="form-control" 
+                            name="role" 
+                            value={editForm.role} 
+                            onChange={handleEditFormChange} 
+                            required
+                            style={{
+                              border: '2px solid #38B6FF',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          >
                             <option value="admin">Admin</option>
                             <option value="trainer">Trainer</option>
                             <option value="member">Member</option>
                           </select>
                         </div>
                       </div>
-                      <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={handleEditCancel}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Save</button>
+                      <div className="modal-footer" style={{ backgroundColor: '#F8F9FA', borderTop: '2px solid #38B6FF' }}>
+                        <button 
+                          type="button" 
+                          className="btn" 
+                          onClick={handleEditCancel}
+                          style={{
+                            backgroundColor: '#6C757D',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '20px',
+                            padding: '10px 20px'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit" 
+                          className="btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #38B6FF 0%, #1E88E5 100%)',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '20px',
+                            padding: '10px 20px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          Save
+                        </button>
                       </div>
                     </form>
                   </div>
@@ -594,37 +900,118 @@ const AdminsDashboard = () => {
             {showAddUserModal && (
               <div className="modal show d-block" tabIndex="-1" ref={addUserModalRef}>
                 <div className="modal-dialog">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h5 className="modal-title">Add User</h5>
-                      <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowAddUserModal(false)}></button>
+                  <div className="modal-content" style={{ backgroundColor: '#F8F9FA', border: '2px solid #2ECC71', borderRadius: '15px' }}>
+                    <div className="modal-header" style={{ backgroundColor: '#2ECC71', borderBottom: '2px solid #27AE60' }}>
+                      <h5 className="modal-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Add User</h5>
+                      <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowAddUserModal(false)} style={{ filter: 'invert(1)' }}></button>
                     </div>
                     <form onSubmit={handleAddUserSubmit}>
-                      <div className="modal-body">
+                      <div className="modal-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
                         <div className="mb-3">
-                          <label className="form-label">Name</label>
-                          <input type="text" className="form-control" name="name" value={addUserForm.name} onChange={handleAddUserFormChange} required />
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Name</label>
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            name="name" 
+                            value={addUserForm.name} 
+                            onChange={handleAddUserFormChange} 
+                            required 
+                            style={{
+                              border: '2px solid #2ECC71',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">Email</label>
-                          <input type="email" className="form-control" name="email" value={addUserForm.email} onChange={handleAddUserFormChange} required />
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Email</label>
+                          <input 
+                            type="email" 
+                            className="form-control" 
+                            name="email" 
+                            value={addUserForm.email} 
+                            onChange={handleAddUserFormChange} 
+                            required 
+                            style={{
+                              border: '2px solid #2ECC71',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">Role</label>
-                          <select className="form-control" name="role" value={addUserForm.role} onChange={handleAddUserFormChange} required>
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Role</label>
+                          <select 
+                            className="form-control" 
+                            name="role" 
+                            value={addUserForm.role} 
+                            onChange={handleAddUserFormChange} 
+                            required
+                            style={{
+                              border: '2px solid #2ECC71',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          >
                             <option value="admin">Admin</option>
                             <option value="trainer">Trainer</option>
                             <option value="member">Member</option>
                           </select>
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">Password</label>
-                          <input type="password" className="form-control" name="password" value={addUserForm.password} onChange={handleAddUserFormChange} required />
+                          <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Password</label>
+                          <input 
+                            type="password" 
+                            className="form-control" 
+                            name="password" 
+                            value={addUserForm.password} 
+                            onChange={handleAddUserFormChange} 
+                            required 
+                            style={{
+                              border: '2px solid #2ECC71',
+                              borderRadius: '10px',
+                              backgroundColor: '#FFFFFF',
+                              color: '#343A40',
+                              padding: '12px 15px'
+                            }}
+                          />
                         </div>
                       </div>
-                      <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Add</button>
+                      <div className="modal-footer" style={{ backgroundColor: '#F8F9FA', borderTop: '2px solid #2ECC71' }}>
+                        <button 
+                          type="button" 
+                          className="btn" 
+                          onClick={() => setShowAddUserModal(false)}
+                          style={{
+                            backgroundColor: '#6C757D',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '20px',
+                            padding: '10px 20px'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit" 
+                          className="btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '20px',
+                            padding: '10px 20px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          Add
+                        </button>
                       </div>
                     </form>
                   </div>
@@ -637,30 +1024,73 @@ const AdminsDashboard = () => {
 
       {/* Manage Classes Modal */}
       {showClassesModal && (
-        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="classesModal" aria-labelledby="offcanvasLabel" ref={classesOffcanvasRef}>
-          <div className="offcanvas-header">
-            <h5 className="offcanvas-title">Manage Classes</h5>
-            <button type="button" className="btn-close" onClick={toggleClassesModal} aria-label="Close"></button>
+        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="classesModal" aria-labelledby="offcanvasLabel" ref={classesOffcanvasRef} style={{ backgroundColor: '#F8F9FA' }}>
+          <div className="offcanvas-header" style={{ backgroundColor: '#2ECC71', borderBottom: '2px solid #27AE60' }}>
+            <h5 className="offcanvas-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Manage Classes</h5>
+            <button type="button" className="btn-close" onClick={toggleClassesModal} aria-label="Close" style={{ filter: 'invert(1)' }}></button>
           </div>
-          <div className="offcanvas-body">
-            <button className="btn btn-success mb-3" onClick={() => setShowAddClassModal(true)}>Add Class</button>
+          <div className="offcanvas-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
+            <button 
+              className="btn mb-3" 
+              onClick={() => setShowAddClassModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                color: '#F8F9FA',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '10px 20px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(46, 204, 113, 0.3)'
+              }}
+            >
+              Add Class
+            </button>
             <input
               type="text"
               className="form-control mb-3"
               placeholder="Search by class name or trainer ID..."
               value={classSearchQuery}
               onChange={e => setClassSearchQuery(e.target.value)}
+              style={{
+                border: '2px solid #2ECC71',
+                borderRadius: '10px',
+                backgroundColor: '#FFFFFF',
+                color: '#343A40',
+                padding: '12px 15px'
+              }}
             />
             <ul className="list-group">
               {classes.filter(classItem =>
                 classItem.name.toLowerCase().includes(classSearchQuery.toLowerCase()) ||
                 (classItem.trainer_id && classItem.trainer_id.toString().includes(classSearchQuery))
               ).map((classItem) => (
-                <li key={classItem.id} className="list-group-item d-flex justify-content-between align-items-center">
-                  {classItem.name} ({classItem.participants_count} participants)
+                <li key={classItem.id} className="list-group-item d-flex justify-content-between align-items-center" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: '8px', marginBottom: '8px' }}>
+                  <span style={{ color: '#4A4A4A' }}>{classItem.name} ({classItem.participants_count} participants)</span>
                   <div>
-                    <button className="btn btn-sm btn-warning mx-1" onClick={() => handleEditClassClick(classItem)}>Edit</button>
-                    <button className="btn btn-sm btn-danger mx-1" onClick={() => handleDeleteClass(classItem.id)}>
+                    <button 
+                      className="btn btn-sm mx-1" 
+                      onClick={() => handleEditClassClick(classItem)}
+                      style={{
+                        backgroundColor: '#FFC107',
+                        color: '#343A40',
+                        border: 'none',
+                        borderRadius: '15px',
+                        padding: '5px 12px'
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      className="btn btn-sm mx-1" 
+                      onClick={() => handleDeleteClass(classItem.id)}
+                      style={{
+                        backgroundColor: '#FF6B6B',
+                        color: '#F8F9FA',
+                        border: 'none',
+                        borderRadius: '15px',
+                        padding: '5px 12px'
+                      }}
+                    >
                       Delete
                     </button>
                   </div>
@@ -725,7 +1155,7 @@ const AdminsDashboard = () => {
                         </div>
                         <div className="mb-3">
                           <label className="form-label">Time</label>
-                          <input type="time" className="form-control" name="classe_time" value={addClassForm.classe_time.slice(0,5)} onChange={handleAddClassFormChange} required />
+                          <input type="time" className="form-control" name="class_time" value={addClassForm.class_time.slice(0,5)} onChange={handleAddClassFormChange} required />
                         </div>
                         <div className="mb-3">
                           <label className="form-label">Date</label>
@@ -755,29 +1185,56 @@ const AdminsDashboard = () => {
 
       {/* Manage Payments Modal */}
       {showPaymentsModal && (
-        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="paymentsModal" aria-labelledby="offcanvasLabel" ref={paymentsOffcanvasRef}>
-          <div className="offcanvas-header">
-            <h5 className="offcanvas-title">Manage Payments</h5>
-            <button type="button" className="btn-close" onClick={togglePaymentsModal} aria-label="Close"></button>
+        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="paymentsModal" aria-labelledby="offcanvasLabel" ref={paymentsOffcanvasRef} style={{ backgroundColor: '#F8F9FA' }}>
+          <div className="offcanvas-header" style={{ backgroundColor: '#38B6FF', borderBottom: '2px solid #007BFF' }}>
+            <h5 className="offcanvas-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Manage Payments</h5>
+            <button type="button" className="btn-close" onClick={togglePaymentsModal} aria-label="Close" style={{ filter: 'invert(1)' }}></button>
           </div>
-          <div className="offcanvas-body">
-            <input
-              type="text"
-              className="form-control mb-3"
-              placeholder="Search by user name or payment status..."
-              value={paymentSearchQuery}
-              onChange={e => setPaymentSearchQuery(e.target.value)}
-            />
+          <div className="offcanvas-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
+            <div className="mb-3">
+              <button 
+                className="btn w-100" 
+                onClick={() => setShowAddPaymentModal(true)}
+                style={{
+                  background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                  color: '#F8F9FA',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '12px 20px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(46, 204, 113, 0.3)',
+                  marginBottom: '15px'
+                }}
+              >
+                Add Payment
+              </button>
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by user name or payment status..."
+                value={paymentSearchQuery}
+                onChange={e => setPaymentSearchQuery(e.target.value)}
+                style={{
+                  border: '2px solid #38B6FF',
+                  borderRadius: '10px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#343A40',
+                  padding: '12px 15px'
+                }}
+              />
+            </div>
             <div className="table-responsive">
-              <table className="table table-striped">
+              <table className="table table-striped" style={{ backgroundColor: '#FFFFFF', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                 <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Plan</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Details</th>
+                  <tr style={{ backgroundColor: '#007BFF' }}>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>User</th>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Plan</th>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Amount</th>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Status</th>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Date</th>
+                    <th style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Details</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -786,11 +1243,11 @@ const AdminsDashboard = () => {
                     payment.plan_name?.toLowerCase().includes(paymentSearchQuery.toLowerCase()) ||
                     payment.status?.toLowerCase().includes(paymentSearchQuery.toLowerCase())
                   ).map((payment) => (
-                    <tr key={payment.id}>
-                      <td>{payment.user_name}</td>
-                      <td>{payment.plan_name}</td>
+                    <tr key={payment.id} style={{ backgroundColor: '#F8F9FA' }}>
+                      <td style={{ color: '#4A4A4A' }}>{payment.user_name}</td>
+                      <td style={{ color: '#4A4A4A' }}>{payment.plan_name}</td>
                       <td>
-                        <div className="text-success">
+                        <div style={{ color: '#2ECC71', fontWeight: 'bold' }}>
                           ${Number(payment.amount).toFixed(2)}
                         </div>
                       </td>
@@ -798,19 +1255,26 @@ const AdminsDashboard = () => {
                         <span className={`badge ${
                           payment.status === 'Paid' ? 'bg-success' : 
                           payment.status === 'Pending' ? 'bg-warning' : 'bg-danger'
-                        }`}>
+                        }`} style={{
+                          backgroundColor: payment.status === 'Paid' ? '#2ECC71' : 
+                                         payment.status === 'Pending' ? '#FFC107' : '#FF6B6B',
+                          color: '#F8F9FA',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.8em'
+                        }}>
                           {payment.status}
                         </span>
                       </td>
-                      <td>
+                      <td style={{ color: '#4A4A4A' }}>
                         <div>{new Date(payment.created_at).toLocaleDateString()}</div>
-                        <small className="text-muted">
+                        <small style={{ color: '#6C757D' }}>
                           {new Date(payment.created_at).toLocaleTimeString()}
                         </small>
                       </td>
                       <td>
                         <button 
-                          className="btn btn-sm btn-outline-info"
+                          className="btn btn-sm"
                           title="View Details"
                           onClick={() => alert('Payment Details:\n' + 
                             `User: ${payment.user_name}\n` +
@@ -819,6 +1283,13 @@ const AdminsDashboard = () => {
                             `Status: ${payment.status}\n` +
                             `Date: ${new Date(payment.created_at).toLocaleString()}`
                           )}
+                          style={{
+                            backgroundColor: '#38B6FF',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '5px 10px'
+                          }}
                         >
                           <i className="fas fa-info-circle"></i>
                         </button>
@@ -828,7 +1299,7 @@ const AdminsDashboard = () => {
                 </tbody>
               </table>
               {payments.length === 0 && (
-                <div className="text-center py-3">
+                <div className="text-center py-3" style={{ backgroundColor: '#FFFFFF', borderRadius: '10px', border: '1px solid #E0E0E0', color: '#4A4A4A' }}>
                   <p>No payments found.</p>
                 </div>
               )}
@@ -839,22 +1310,48 @@ const AdminsDashboard = () => {
 
       {/* Reports Modal */}
       {showReportsModal && (
-        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="reportsModal" aria-labelledby="offcanvasLabel" ref={reportsOffcanvasRef}>
-          <div className="offcanvas-header">
-            <h5 className="offcanvas-title">Reports</h5>
-            <button type="button" className="btn-close" onClick={toggleReportsModal} aria-label="Close"></button>
+        <div className="offcanvas offcanvas-end show" tabIndex="-1" id="reportsModal" aria-labelledby="offcanvasLabel" ref={reportsOffcanvasRef} style={{ backgroundColor: '#F8F9FA' }}>
+          <div className="offcanvas-header" style={{ backgroundColor: '#2ECC71', borderBottom: '2px solid #27AE60' }}>
+            <h5 className="offcanvas-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Reports</h5>
+            <button type="button" className="btn-close" onClick={toggleReportsModal} aria-label="Close" style={{ filter: 'invert(1)' }}></button>
           </div>
-          <div className="offcanvas-body">
-            <h6>Contact Messages</h6>
+          <div className="offcanvas-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
+            <h6 style={{ color: '#007BFF', fontWeight: 'bold', marginBottom: '15px' }}>Contact Messages</h6>
             <ul className="list-group mb-3">
-              {contacters.length === 0 && <li className="list-group-item">No contact messages found.</li>}
+              {contacters.length === 0 && <li className="list-group-item" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: '8px', color: '#4A4A4A' }}>No contact messages found.</li>}
               {contacters.map((c) => (
-                <li key={c.id} className="list-group-item" style={{ textAlign: 'left', display: 'block' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{c.email}</div>
-                  <div style={{ marginLeft: 0 }}>{c.message}</div>
-                  <button className="btn btn-sm btn-info mt-2" onClick={() => { setRespondingId(c.id); setFaqForm({ question: c.message, answer: '' }); }}>Add Response</button>
+                <li key={c.id} className="list-group-item" style={{ 
+                  textAlign: 'left', 
+                  display: 'block', 
+                  backgroundColor: '#FFFFFF', 
+                  border: '1px solid #E0E0E0', 
+                  borderRadius: '8px', 
+                  marginBottom: '10px',
+                  padding: '15px'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#007BFF' }}>{c.email}</div>
+                  <div style={{ marginLeft: 0, color: '#4A4A4A', marginBottom: '10px' }}>{c.message}</div>
+                  <button 
+                    className="btn btn-sm mt-2" 
+                    onClick={() => { setRespondingId(c.id); setFaqForm({ question: c.message, answer: '' }); }}
+                    style={{
+                      backgroundColor: '#38B6FF',
+                      color: '#F8F9FA',
+                      border: 'none',
+                      borderRadius: '15px',
+                      padding: '6px 15px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Add Response
+                  </button>
                   {respondingId === c.id && (
-                    <form className="mt-2 p-3 border rounded bg-light" style={{ maxWidth: 400 }} onSubmit={async (e) => {
+                    <form className="mt-2 p-3 border rounded" style={{ 
+                      maxWidth: 400, 
+                      backgroundColor: '#F8F9FA', 
+                      border: '2px solid #38B6FF !important',
+                      borderRadius: '10px'
+                    }} onSubmit={async (e) => {
                       e.preventDefault();
                       const token = localStorage.getItem('token');
                       const res = await fetch('http://localhost:8000/api/faq', {
@@ -875,23 +1372,238 @@ const AdminsDashboard = () => {
                       }
                     }}>
                       <div className="mb-3">
-                        <label className="form-label">Question</label>
-                        <input type="text" className="form-control" value={faqForm.question} onChange={e => setFaqForm(f => ({ ...f, question: e.target.value }))} required />
+                        <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Question</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          value={faqForm.question} 
+                          onChange={e => setFaqForm(f => ({ ...f, question: e.target.value }))} 
+                          required 
+                          style={{
+                            border: '2px solid #38B6FF',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFFFF',
+                            color: '#343A40',
+                            padding: '10px'
+                          }}
+                        />
                       </div>
                       <div className="mb-3">
-                        <label className="form-label">Response</label>
-                        <input type="text" className="form-control" value={faqForm.answer} onChange={e => setFaqForm(f => ({ ...f, answer: e.target.value }))} required />
+                        <label className="form-label" style={{ color: '#343A40', fontWeight: 'bold' }}>Response</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          value={faqForm.answer} 
+                          onChange={e => setFaqForm(f => ({ ...f, answer: e.target.value }))} 
+                          required 
+                          style={{
+                            border: '2px solid #38B6FF',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFFFF',
+                            color: '#343A40',
+                            padding: '10px'
+                          }}
+                        />
                       </div>
                       <div className="d-flex justify-content-end">
-                        <button type="submit" className="btn btn-success me-2">Confirm</button>
-                        <button type="button" className="btn btn-secondary" onClick={() => setRespondingId(null)}>Cancel</button>
+                        <button 
+                          type="submit" 
+                          className="btn me-2"
+                          style={{
+                            background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '15px',
+                            padding: '8px 16px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn" 
+                          onClick={() => setRespondingId(null)}
+                          style={{
+                            backgroundColor: '#6C757D',
+                            color: '#F8F9FA',
+                            border: 'none',
+                            borderRadius: '15px',
+                            padding: '8px 16px'
+                          }}
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </form>
                   )}
                 </li>
               ))}
             </ul>
-            {faqSuccess && <div className="alert alert-success mt-2">{faqSuccess}</div>}
+            {faqSuccess && <div className="alert alert-success mt-2" style={{ backgroundColor: '#E8F5E8', border: '1px solid #2ECC71', color: '#2ECC71' }}>{faqSuccess}</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Add Payment Modal */}
+      {showAddPaymentModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content" style={{ backgroundColor: '#F8F9FA', borderRadius: '15px', border: '2px solid #38B6FF' }}>
+              <div className="modal-header" style={{ backgroundColor: '#007BFF', borderBottom: '2px solid #38B6FF', borderRadius: '15px 15px 0 0' }}>
+                <h5 className="modal-title" style={{ color: '#F8F9FA', fontWeight: 'bold' }}>Add New Payment</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowAddPaymentModal(false)}
+                  style={{ filter: 'invert(1)' }}
+                ></button>
+              </div>
+              <div className="modal-body" style={{ backgroundColor: '#F8F9FA', color: '#4A4A4A' }}>
+                <form onSubmit={handleAddPaymentSubmit}>
+                  <div className="mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', color: '#007BFF' }}>User</label>
+                    <select
+                      className="form-select"
+                      name="user_id"
+                      value={addPaymentForm.user_id}
+                      onChange={handleAddPaymentFormChange}
+                      required
+                      style={{
+                        border: '2px solid #38B6FF',
+                        borderRadius: '10px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#343A40',
+                        padding: '10px 15px'
+                      }}
+                    >
+                      <option value="">Select a user</option>
+                      {users.map(user => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', color: '#007BFF' }}>Plan</label>
+                    <select
+                      className="form-select"
+                      name="plan_id"
+                      value={addPaymentForm.plan_id}
+                      onChange={handleAddPaymentFormChange}
+                      required
+                      style={{
+                        border: '2px solid #38B6FF',
+                        borderRadius: '10px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#343A40',
+                        padding: '10px 15px'
+                      }}
+                    >
+                      <option value="">Select a plan</option>
+                      {plans.map(plan => (
+                        <option key={plan.id} value={plan.id}>{plan.name} - ${plan.price}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', color: '#007BFF' }}>Amount</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="amount"
+                      value={addPaymentForm.amount}
+                      onChange={handleAddPaymentFormChange}
+                      step="0.01"
+                      min="0"
+                      required
+                      style={{
+                        border: '2px solid #38B6FF',
+                        borderRadius: '10px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#343A40',
+                        padding: '10px 15px'
+                      }}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', color: '#007BFF' }}>Payment Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      name="payment_date"
+                      value={addPaymentForm.payment_date}
+                      onChange={handleAddPaymentFormChange}
+                      required
+                      style={{
+                        border: '2px solid #38B6FF',
+                        borderRadius: '10px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#343A40',
+                        padding: '10px 15px'
+                      }}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', color: '#007BFF' }}>Status</label>
+                    <select
+                      className="form-select"
+                      name="status"
+                      value={addPaymentForm.status}
+                      onChange={handleAddPaymentFormChange}
+                      required
+                      style={{
+                        border: '2px solid #38B6FF',
+                        borderRadius: '10px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#343A40',
+                        padding: '10px 15px'
+                      }}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Failed">Failed</option>
+                    </select>
+                  </div>
+
+                  <div className="d-flex justify-content-end gap-2">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setShowAddPaymentModal(false)}
+                      style={{
+                        backgroundColor: '#6C757D',
+                        color: '#F8F9FA',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '10px 20px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn"
+                      style={{
+                        background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+                        color: '#F8F9FA',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '10px 20px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 4px 12px rgba(46, 204, 113, 0.3)'
+                      }}
+                    >
+                      Add Payment
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       )}
